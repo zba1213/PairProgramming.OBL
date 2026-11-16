@@ -37,6 +37,21 @@ public class MusicRecordsController(IMusicRecordRepository repository) : Control
         return CreatedAtAction(nameof(GetById), new { id = record.Id }, record);
     }
 
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Editor")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult Update(int id, NewMusicRecord input)
+    {
+        if (!repository.Update(id, input))
+            return NotFound();
+
+        return NoContent();
+    }
+
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Editor")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

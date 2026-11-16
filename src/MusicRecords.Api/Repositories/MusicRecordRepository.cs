@@ -40,6 +40,24 @@ public sealed class MusicRecordRepository(MusicRecordsDbContext database) : IMus
         return record;
     }
 
+    public bool Update(int id, NewMusicRecord input)
+    {
+        var title = input.Title.Trim();
+        var artist = input.Artist.Trim();
+        var searchTitle = title.ToUpperInvariant();
+        var searchArtist = artist.ToUpperInvariant();
+        var updatedRows = database.MusicRecords
+            .Where(record => record.Id == id)
+            .ExecuteUpdate(fields => fields
+                .SetProperty(record => record.Title, title)
+                .SetProperty(record => record.Artist, artist)
+                .SetProperty(record => record.Duration, input.Duration!.Value)
+                .SetProperty(record => record.PublicationYear, input.PublicationYear!.Value)
+                .SetProperty(record => EF.Property<string>(record, "SearchTitle"), searchTitle)
+                .SetProperty(record => EF.Property<string>(record, "SearchArtist"), searchArtist));
+        return updatedRows > 0;
+    }
+
     public bool Delete(int id)
     {
         var deletedRows = database.MusicRecords.Where(record => record.Id == id).ExecuteDelete();
