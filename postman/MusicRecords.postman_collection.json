@@ -7,7 +7,10 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:5000"
-    }
+    },
+    { "key": "loginUsername", "value": "" },
+    { "key": "loginPassword", "value": "" },
+    { "key": "loginRole", "value": "Editor" }
   ],
   "item": [
     {
@@ -67,6 +70,81 @@
             "type": "text/javascript",
             "exec": ["pm.test('HTTP 400', () => pm.response.to.have.status(400));"]
           }
+        }
+      ]
+    },
+    {
+      "name": "Log in and receive a JWT",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{{loginBody}}" },
+        "url": "{{baseUrl}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": ["pm.variables.set('loginBody', JSON.stringify({ username: pm.variables.get('loginUsername'), password: pm.variables.get('loginPassword') }));"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('HTTP 200 and matching account', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const session = pm.response.json();",
+              "  pm.expect(session.username).to.eql(pm.variables.get('loginUsername'));",
+              "  pm.expect(session.role).to.eql(pm.variables.get('loginRole'));",
+              "  pm.expect(Date.parse(session.expiresAt)).to.be.above(Date.now());",
+              "});",
+              "pm.test('JWT contains the user and role claims', () => {",
+              "  const parts = pm.response.json().token.split('.');",
+              "  pm.expect(parts).to.have.lengthOf(3);",
+              "  const bytes = require('buffer').Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64');",
+              "  const claims = JSON.parse(bytes.toString('utf8'));",
+              "  pm.expect(claims.sub).to.eql(pm.variables.get('loginUsername'));",
+              "  pm.expect(claims.role).to.eql(pm.variables.get('loginRole'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject an incorrect password",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{{invalidLoginBody}}" },
+        "url": "{{baseUrl}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": ["pm.variables.set('invalidLoginBody', JSON.stringify({ username: pm.variables.get('loginUsername'), password: pm.variables.replaceIn('{{$guid}}') }));"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('HTTP 401 without a token', () => { pm.response.to.have.status(401); pm.expect(pm.response.text()).not.to.include('token'); });"] }
+        }
+      ]
+    },
+    {
+      "name": "Reject a missing password",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"username\": \"test-editor\"}" },
+        "url": "{{baseUrl}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('HTTP 400', () => pm.response.to.have.status(400));"] }
         }
       ]
     }
