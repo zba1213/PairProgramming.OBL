@@ -15,4 +15,16 @@ public sealed class MusicRecordRepository : IMusicRecordRepository
     }
     // Return a snapshot so callers cannot change repository contents.
     public IReadOnlyList<MusicRecord> GetAll() => records.ToArray();
+
+    public IReadOnlyList<MusicRecord> Search(string? title, string? artist, int? publicationYear)
+    {
+        title = title?.Trim() ?? string.Empty;
+        artist = artist?.Trim() ?? string.Empty;
+
+        return records.Where(record =>
+            record.Title.Contains(title, StringComparison.OrdinalIgnoreCase)
+            && record.Artist.Contains(artist, StringComparison.OrdinalIgnoreCase)
+            && (publicationYear is null || record.PublicationYear == publicationYear))
+            .ToArray();
+    }
 }

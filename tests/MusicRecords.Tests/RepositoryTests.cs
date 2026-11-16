@@ -4,6 +4,20 @@ namespace MusicRecords.Tests;
 [TestClass]
 public class RepositoryTests
 {
+    [DataTestMethod]
+    [DataRow(null, null, null, 3)]
+    [DataRow("   ", "", null, 3)]
+    [DataRow(" bLuE ", null, null, 1)]
+    [DataRow(null, "BEATLES", null, 1)]
+    [DataRow(null, null, 1985, 1)]
+    [DataRow("blue", "miles", 1959, 1)]
+    [DataRow("blue", "miles", 1969, 0)]
+    [DataRow("blue", "beatles", null, 0)]
+    public void Search_CombinesOptionalFilters(string? title, string? artist, int? year, int count)
+    {
+        Assert.AreEqual(count, new MusicRecordRepository().Search(title, artist, year).Count);
+    }
+
     [TestMethod]
     public void GetAll_DefaultRepository_ContainsThreeSampleRecords()
     {

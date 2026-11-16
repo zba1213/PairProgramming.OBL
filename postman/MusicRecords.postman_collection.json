@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Music records \u2013 story 1",
+    "name": "Music records",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -29,6 +29,43 @@
               " records.forEach(r => { pm.expect(r.title).to.be.a(\"string\"); pm.expect(r.artist).to.be.a(\"string\"); [r.id, r.duration, r.publicationYear].forEach(v => pm.expect(Number.isInteger(v)).to.eql(true)); });",
               "});"
             ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search by title, artist and year",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/musicrecords?title=blue&artist=miles&publicationYear=1959"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Only the matching record is returned', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().map(record => record.title)).to.eql(['Kind of Blue']);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject an invalid publication year",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/musicrecords?publicationYear=invalid"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('HTTP 400', () => pm.response.to.have.status(400));"]
           }
         }
       ]
