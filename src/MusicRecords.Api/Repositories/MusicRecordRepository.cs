@@ -1,30 +1,38 @@
+using Microsoft.EntityFrameworkCore;
 using MusicRecords.Api.Models;
+
 namespace MusicRecords.Api.Repositories;
-public sealed class MusicRecordRepository : IMusicRecordRepository
+
+public sealed class MusicRecordRepository(MusicRecordsDbContext database) : IMusicRecordRepository
 {
-    private readonly List<MusicRecord> records;
-    public MusicRecordRepository() : this(new[]
-    {
-        new MusicRecord(1, "Kind of Blue", "Miles Davis", 2757, 1959),
-        new MusicRecord(2, "Abbey Road", "The Beatles", 2813, 1969),
-        new MusicRecord(3, "Hounds of Love", "Kate Bush", 2847, 1985)
-    }) { }
-    public MusicRecordRepository(IEnumerable<MusicRecord> initialRecords)
-    {
-        records = initialRecords.ToList();
-    }
-    // Return a snapshot so callers cannot change repository contents.
-    public IReadOnlyList<MusicRecord> GetAll() => records.ToArray();
+    public IReadOnlyList<MusicRecord> GetAll() => Search(null, null, null);
 
     public IReadOnlyList<MusicRecord> Search(string? title, string? artist, int? publicationYear)
     {
-        title = title?.Trim() ?? string.Empty;
-        artist = artist?.Trim() ?? string.Empty;
+        title = title?.Trim().ToUpperInvariant() ?? string.Empty;
+        artist = artist?.Trim().ToUpperInvariant() ?? string.Empty;
 
-        return records.Where(record =>
-            record.Title.Contains(title, StringComparison.OrdinalIgnoreCase)
-            && record.Artist.Contains(artist, StringComparison.OrdinalIgnoreCase)
-            && (publicationYear is null || record.PublicationYear == publicationYear))
+        return database.MusicRecords.AsNoTracking()
+            .Where(record => (publicationYear == null || record.PublicationYear == publicationYear)
+                && EF.Property<string>(record, "SearchTitle").Contains(title)
+                && EF.Property<string>(record, "SearchArtist").Contains(artist))
+            .OrderBy(record => record.Id)
             .ToArray();
     }
+
+    public MusicRecord? Find(int id) =>
+        database.MusicRecords.AsNoTracking().SingleOrDefault(record => record.Id == id);
+
+    public MusicRecord Add(NewMusicRecord input)
+    {
+        var record = new MusicRecord(0, input.Title.Trim(), input.Artist.Trim(),
+            input.Duration!.Value, input.PublicationYear!.Value);
+        var entry = database.MusicRecords.Add(record);
+        entry.Property("SearchTitle").CurrentValue = record.Title.ToUpperInvariant();
+        entry.Property("SearchArtist").CurrentValue = record.Artist.ToUpperInvariant();
+        database.SaveChanges();
+        return record;
+    }
+
+    public bool Delete(int id) => database.MusicRecords.Where(record => record.Id == id).ExecuteDelete() > 0;
 }
