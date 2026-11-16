@@ -232,6 +232,57 @@
       ]
     },
     {
+      "name": "Reject an update without login",
+      "request": {
+        "method": "PUT",
+        "url": "{{baseUrl}}/api/musicrecords/{{createdRecordId}}",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"title\":\"Uden login\",\"artist\":\"Postman test\",\"duration\":150,\"publicationYear\":2025}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('HTTP 401', () => pm.response.to.have.status(401));"] }
+        }
+      ]
+    },
+    {
+      "name": "Update the created record as Editor",
+      "request": {
+        "method": "PUT",
+        "url": "{{baseUrl}}/api/musicrecords/{{createdRecordId}}",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{editorToken}}", "type": "string" }] },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"title\":\"Postman opdateret\",\"artist\":\"Ny kunstner\",\"duration\":150,\"publicationYear\":2025}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('HTTP 204', () => pm.response.to.have.status(204));"] }
+        }
+      ]
+    },
+    {
+      "name": "Verify the updated record",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/musicrecords/{{createdRecordId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('HTTP 200 and the saved changes', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json()).to.include({ title: 'Postman opdateret', artist: 'Ny kunstner', duration: 150, publicationYear: 2025 });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "Delete the created record as Editor",
       "request": {
         "method": "DELETE",
@@ -274,6 +325,22 @@
               "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
             ]
           }
+        }
+      ]
+    },
+    {
+      "name": "Reject an update to the deleted record",
+      "request": {
+        "method": "PUT",
+        "url": "{{baseUrl}}/api/musicrecords/{{createdRecordId}}",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{editorToken}}", "type": "string" }] },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"title\":\"Slettet plade\",\"artist\":\"Postman test\",\"duration\":150,\"publicationYear\":2025}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('HTTP 404', () => pm.response.to.have.status(404));"] }
         }
       ]
     }

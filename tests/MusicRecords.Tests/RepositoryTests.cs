@@ -65,6 +65,28 @@ public class RepositoryTests
     }
 
     [TestMethod]
+    public void Update_SavesNewFieldsAndUpdatesSearch()
+    {
+        var input = new NewMusicRecord("  Nyt øjeblik  ", "  Søren  ", 150, 2025);
+        Assert.IsTrue(repository.Update(1, input));
+
+        using var readDatabase = new MusicRecordsDbContext(options);
+        var reader = new MusicRecordRepository(readDatabase);
+        var expected = new MusicRecord(1, "Nyt øjeblik", "Søren", 150, 2025);
+        Assert.AreEqual(expected, reader.Find(1));
+        Assert.AreEqual(expected, reader.Search("NYT ØJE", "søRen", 2025).Single());
+        Assert.AreEqual(0, reader.Search("Kind of Blue", null, null).Count);
+        Assert.AreEqual(3, reader.GetAll().Count);
+    }
+
+    [TestMethod]
+    public void Update_ReturnsFalseWhenRecordDoesNotExist()
+    {
+        Assert.IsFalse(repository.Update(999, new NewMusicRecord("Titel", "Kunstner", 150, 2025)));
+        Assert.AreEqual(3, repository.GetAll().Count);
+    }
+
+    [TestMethod]
     public void Delete_RemovesOnlyTheRequestedRecordAndDoesNotReseed()
     {
         Assert.IsTrue(repository.Delete(1));
