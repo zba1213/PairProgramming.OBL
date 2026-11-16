@@ -28,6 +28,29 @@ CORS tillader localhost og 127.0.0.1 på port 5500. Ved hosting sættes
 Importer `postman/MusicRecords.postman_collection.json`. Variablen `baseUrl`
 er som standard `http://localhost:5000`. Kør collection og gem testresultater til afleveringen.
 
+## Login lokalt
+
+Sæt miljøvariablerne i samme terminal, før du starter API'et. Eksempel med PowerShell:
+
+```powershell
+$env:Auth__SigningKey = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$env:Auth__Users__0__Username = 'test-editor'
+$env:Auth__Users__0__Password = Read-Host 'Adgangskode til den lokale testkonto'
+$env:Auth__Users__0__Role = 'Editor'
+dotnet run --project src/MusicRecords.Api --launch-profile http
+```
+
+Brug næste indeks til en eventuel ekstra konto. Gem værdierne som hemmeligheder i
+hostingmiljøet, og brug HTTPS uden for localhost. API'et kan starte uden konti,
+så listevisning og søgning stadig kan testes med standardopsætningen.
+
+`POST /api/auth/login` bruger JSON-felterne `username` og `password` og
+returnerer `200` med et JWT gyldigt i 30 minutter, `400` ved ugyldigt input
+eller `401` ved ukendte legitimationsoplysninger. Kopiér testkontoens værdier
+til Postman-variablerne `loginUsername`, `loginPassword` og `loginRole`.
+Logout rydder browserens session. Et allerede udstedt token udløber på sit
+normale udløbstidspunkt.
+
 ## Arbejdsplan
 1. Vis alle plader (denne feature branch).
 2. Søg og filtrér.
