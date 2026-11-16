@@ -1,9 +1,42 @@
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using MusicRecords.Api.Models;
 using MusicRecords.Api.Repositories;
+
 namespace MusicRecords.Tests;
+
 [TestClass]
 public class RepositoryTests
 {
+    private SqliteConnection connection = null!;
+    private DbContextOptions<MusicRecordsDbContext> options = null!;
+    private MusicRecordsDbContext database = null!;
+    private MusicRecordRepository repository = null!;
+
+    [TestInitialize]
+    public void Initialize()
+    {
+        connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        options = new DbContextOptionsBuilder<MusicRecordsDbContext>().UseSqlite(connection).Options;
+        database = new MusicRecordsDbContext(options);
+        database.Database.Migrate();
+        repository = new MusicRecordRepository(database);
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        database?.Dispose();
+        connection?.Dispose();
+    }
+
+    [TestMethod]
+    public void GetAll_ReturnsSeedRecordsInOrder()
+    {
+        CollectionAssert.AreEqual(new[] { 1, 2, 3 }, repository.GetAll().Select(record => record.Id).ToArray());
+    }
+
     [DataTestMethod]
     [DataRow(null, null, null, 3)]
     [DataRow("   ", "", null, 3)]
@@ -15,36 +48,31 @@ public class RepositoryTests
     [DataRow("blue", "beatles", null, 0)]
     public void Search_CombinesOptionalFilters(string? title, string? artist, int? year, int count)
     {
-        Assert.AreEqual(count, new MusicRecordRepository().Search(title, artist, year).Count);
+        Assert.AreEqual(count, repository.Search(title, artist, year).Count);
     }
 
     [TestMethod]
-    public void GetAll_DefaultRepository_ContainsThreeSampleRecords()
+    public void Add_PersistsTrimmedRecordForAnotherContextAndSupportsUnicodeSearch()
     {
-        Assert.AreEqual(3, new MusicRecordRepository().GetAll().Count);
+        var record = repository.Add(new NewMusicRecord("  Ét øjeblik  ", "  Søren  ", 125, 2024));
+        Assert.IsTrue(record.Id > 3);
+
+        using var readDatabase = new MusicRecordsDbContext(options);
+        var reader = new MusicRecordRepository(readDatabase);
+        var expected = new MusicRecord(record.Id, "Ét øjeblik", "Søren", 125, 2024);
+        Assert.AreEqual(expected, reader.Find(record.Id));
+        Assert.AreEqual(expected, reader.Search("ÉT ØJE", "søRen", 2024).Single());
     }
+
     [TestMethod]
-    public void GetAll_EmptyRepository_ReturnsEmptyList()
+    public void Delete_RemovesOnlyTheRequestedRecordAndDoesNotReseed()
     {
-        var repository = new MusicRecordRepository([]);
+        Assert.IsTrue(repository.Delete(1));
+        Assert.IsFalse(repository.Delete(1));
+        Assert.IsNull(repository.Find(1));
+        Assert.IsTrue(repository.Delete(2));
+        Assert.IsTrue(repository.Delete(3));
+        database.Database.Migrate();
         Assert.AreEqual(0, repository.GetAll().Count);
-    }
-    [TestMethod]
-    public void GetAll_PreservesAllRecordFields()
-    {
-        var record = new MusicRecord(7, "Test", "Kunstner", 125, 2024);
-        var repository = new MusicRecordRepository([record]);
-        CollectionAssert.AreEqual(new[] { record }, repository.GetAll().ToArray());
-    }
-    [TestMethod]
-    public void GetAll_CallerCannotModifyRepositoryThroughResultOrInput()
-    {
-        var original = new MusicRecord(1, "Original", "Artist", 100, 2000);
-        var input = new List<MusicRecord> { original };
-        var repository = new MusicRecordRepository(input);
-        input.Clear();
-        var snapshot = (MusicRecord[])repository.GetAll();
-        snapshot[0] = original with { Title = "Changed" };
-        Assert.AreEqual(original, repository.GetAll().Single());
     }
 }

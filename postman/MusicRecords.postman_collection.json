@@ -98,6 +98,7 @@
               "  pm.expect(session.username).to.eql(pm.variables.get('loginUsername'));",
               "  pm.expect(session.role).to.eql(pm.variables.get('loginRole'));",
               "  pm.expect(Date.parse(session.expiresAt)).to.be.above(Date.now());",
+              "  pm.variables.set('editorToken', session.token);",
               "});",
               "pm.test('JWT contains the user and role claims', () => {",
               "  const parts = pm.response.json().token.split('.');",
@@ -145,6 +146,134 @@
         {
           "listen": "test",
           "script": { "exec": ["pm.test('HTTP 400', () => pm.response.to.have.status(400));"] }
+        }
+      ]
+    },
+    {
+      "name": "Reject unsigned creation",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/musicrecords",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Unauthenticated\",\"artist\":\"Postman test\",\"duration\":125,\"publicationYear\":2024}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create a music record as Editor",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/musicrecords",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{editorToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"{{newRecordTitle}}\",\"artist\":\"Postman test\",\"duration\":125,\"publicationYear\":2024}"
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.variables.set('newRecordTitle', 'Postman ' + pm.variables.replaceIn('{{$guid}}'));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201 and a resource location', () => {",
+              "  pm.response.to.have.status(201);",
+              "  const record = pm.response.json();",
+              "  pm.expect(record.id).to.be.above(0);",
+              "  pm.expect(record.title).to.eql(pm.variables.get('newRecordTitle'));",
+              "  pm.expect(pm.response.headers.get('Location')).to.include('/api/musicrecords/' + record.id);",
+              "  pm.variables.set('createdRecordId', record.id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete the created record as Editor",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/musicrecords/{{createdRecordId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{editorToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Verify the deleted record is gone",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/musicrecords/{{createdRecordId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
+            ]
+          }
         }
       ]
     }

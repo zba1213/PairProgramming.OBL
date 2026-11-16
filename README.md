@@ -1,6 +1,6 @@
 # DR musiksamling – backend
 
-Første brugerhistorie: Som bruger vil jeg se alle musikplader.
+REST API til at vise, søge i og administrere DR's musiksamling.
 
 ## Projekter
 - Dette repository: ASP.NET Core REST API og MSTest repository-tests.
@@ -19,14 +19,35 @@ API: http://localhost:5000/api/musicrecords
 Swagger: http://localhost:5000/swagger
 
 GET returnerer HTTP 200 og en JSON-liste (også når listen er tom).
-Data ligger foreløbig i en List med tre eksempelplader; der er ingen database endnu.
+Data ligger i tabellen `MusicRecords`. Migreringen opretter tabellen og indlæser
+de tre eksempelplader første gang.
 Varighed måles i sekunder og udgivelsesår er et heltal.
 CORS tillader localhost og 127.0.0.1 på port 5500. Ved hosting sættes
 `Cors__AllowedOrigins__0` til frontendens præcise origin.
 
+## Database og ændringer
+
+Lokalt bruger API'et filen `musicrecords.db` i arbejdsmappen. Brug
+`ConnectionStrings__LocalMusicRecords` til at vælge en separat SQLite-fil til test.
+Sæt `ConnectionStrings__MusicRecords` som hemmelighed i hostingmiljøet for at bruge
+en eksisterende Azure SQL- eller SQL Server-database. Ved første opstart
+skal databasekontoen kunne oprette tabellen og migreringshistorikken. Start én
+API-instans, mens migreringen køres.
+
+- `GET /api/musicrecords/{id}` returnerer `200` eller `404`.
+- `POST /api/musicrecords` opretter en plade og returnerer `201` med dens URL.
+  Ugyldige felter giver `400`.
+- `DELETE /api/musicrecords/{id}` returnerer `204` eller `404`.
+
+Tilføjelse og sletning kræver et JWT for en bruger med rollen `Editor`.
+Manglende eller ugyldigt token giver `401`, og en anden rolle giver `403`.
+I Swagger kan tokenet indsættes under **Authorize**.
+
 ## Postman
 Importer `postman/MusicRecords.postman_collection.json`. Variablen `baseUrl`
-er som standard `http://localhost:5000`. Kør collection og gem testresultater til afleveringen.
+er som standard `http://localhost:5000`. Kør hele collectionen mod en testdatabase
+med en Editor-konto. Login gemmer tokenet for det aktuelle run, som opretter og
+sletter en særskilt testplade. Gem testresultaterne til afleveringen.
 
 ## Login lokalt
 
@@ -52,7 +73,7 @@ Logout rydder browserens session. Et allerede udstedt token udløber på sit
 normale udløbstidspunkt.
 
 ## Arbejdsplan
-1. Vis alle plader (denne feature branch).
+1. Vis alle plader.
 2. Søg og filtrér.
 3. Login/logout med JWT og roller, samt Vue-komponenter.
 4. Tilføj/slet og skift til database.
