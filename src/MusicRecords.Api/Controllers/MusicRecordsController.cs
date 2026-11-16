@@ -43,5 +43,11 @@ public class MusicRecordsController(IMusicRecordRepository repository) : Control
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult Delete(int id) => repository.Delete(id) ? NoContent() : NotFound();
+    public IActionResult Delete(int id)
+    {
+        if (!repository.Delete(id))
+            return NotFound();
+
+        return NoContent();
+    }
 }
